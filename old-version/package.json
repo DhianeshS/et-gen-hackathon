@@ -1,0 +1,14 @@
+{
+  "name": "ai-financial-mentor",
+  "version": "1.0.0",
+  "description": "An AI-powered Financial Mentor web application",
+  "main": "main.js",
+  "scripts": {
+    "start": "serve ."
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  },
+  "author": "",
+  "license": "ISC"
+}

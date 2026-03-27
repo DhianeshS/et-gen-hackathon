@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Financial Mentor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Notification Container -->
+  <div id="notification-container" class="notification-container"></div>
+
+  <!-- App Wrapper -->
+  <div id="app" class="app-container">
+    
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+      <div class="card login-card">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="text-indigo"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        </div>
+        <h1>Welcome to Your Financial Mentor</h1>
+        <p class="subtitle">Log in to track your goals, get portfolio x-rays, and improve your money health score.</p>
+        
+        <form id="login-form">
+          <div class="input-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" placeholder="E.g., Rahul Sharma" required>
+          </div>
+          <div class="input-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" placeholder="rahul@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-primary" id="login-btn">
+            Connect to Mentor
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Dashboard & Chat Screen -->
+    <div id="dashboard-screen" class="screen">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="brand">
+          <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="text-indigo"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <span>AI FinMentor</span>
+        </div>
+        
+        <div class="user-profile">
+          <div class="avatar" id="sidebar-avatar">RS</div>
+          <div class="user-details">
+            <div class="user-name" id="sidebar-name">Rahul Sharma</div>
+            <div class="user-email" id="sidebar-email">rahul@example.com</div>
+          </div>
+        </div>
+
+        <nav class="nav-menu">
+           <button class="nav-item active">Mentor Chat</button>
+           <button class="nav-item" id="logout-btn">Log Out</button>
+        </nav>
+      </aside>
+
+      <!-- Main Chat Area -->
+      <main class="chat-area">
+        <header class="chat-header">
+          <h2>Financial Mentor</h2>
+          <div class="status">
+            <span class="dot green"></span>
+            <span>Online & Ready</span>
+          </div>
+        </header>
+
+        <div class="chat-messages" id="chat-messages">
+          <div class="message mentor-message">
+            <div class="avatar mentor-avatar">AI</div>
+            <div class="message-content">
+              <p>Hello <span id="welcome-name"></span>! I'm your AI Financial Mentor.</p>
+              <p>I can help you with:</p>
+              <ul>
+                <li>💸 <strong>Money Health Score</strong></li>
+                <li>🎯 <strong>Life Event Planning</strong></li>
+                <li>📊 <strong>MF Portfolio X-Ray</strong></li>
+              </ul>
+              <p>Ask me anything, like "Can I afford a ₹10L car?" or "Plan for ₹20L in 10 years".</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-container">
+          <form id="chat-form">
+            <div class="input-wrapper">
+              <input type="text" id="chat-input" placeholder="Ask your financial query here..." autocomplete="off">
+              <button type="submit" class="send-btn" id="send-btn" disabled>
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
+            <div class="disclaimer">
+              This is an AI mentor. Not SEBI registered financial advice.
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="mock-backend.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
