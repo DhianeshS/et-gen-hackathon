@@ -1,14 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { 
-  Send, User, Sparkles, Clock, ShieldCheck, Target, CheckCircle, Smartphone, Trash2
+  Send, User, Sparkles, Clock, ShieldCheck, Target, CheckCircle, Smartphone, Trash2, Settings, Camera, Upload, X
 } from 'lucide-react';
 
 // ─── Gemini AI — runs directly in the browser ─────────────────────────────
 const VITE_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = VITE_KEY ? new GoogleGenAI({ apiKey: VITE_KEY }) : null;
 
-const SYSTEM_PROMPT = `You are Finora X, a world-class expert in Indian personal finance, wealth management, and mutual funds. Provide actionable, high-fidelity insights in a professional, sharp, and slightly witty style.
+const getSystemPrompt = (tone, risk) => `You are Finora X, a world-class expert in Indian personal finance, wealth management, and mutual funds. Provide actionable, high-fidelity insights in a ${tone.toLowerCase()}, sharp style.
+
+USER'S RISK TOLERANCE: ${risk}
 
 CAPABILITIES: Analyze financial datasets, SIP calculations, market trends. Use first-principles thinking for savings, tax, and investment problems. Format responses using Markdown (## headers, **bold**, bullet lists, numbered lists, tables).
 
@@ -65,7 +67,7 @@ export default function Dashboard({ user, onLogout }) {
   }, [messages, loading]);
   
   // Navigation Routing State
-  const [activeView, setActiveView] = useState('chat'); // 'chat', 'search', 'codex', 'more'
+  const [activeView, setActiveView] = useState('chat'); // 'chat', 'search', 'codex', 'settings'
   const [historyList, setHistoryList] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -73,6 +75,91 @@ export default function Dashboard({ user, onLogout }) {
   const [upiId, setUpiId] = useState('');
   const [isLinking, setIsLinking] = useState(false);
   const [bankLinked, setBankLinked] = useState(false);
+
+  // AI & Bot State
+  const [aiTone, setAiTone] = useState(() => localStorage.getItem('finorax_tone') || 'Professional');
+  const [riskTolerance, setRiskTolerance] = useState(() => localStorage.getItem('finorax_risk') || 'Moderate');
+
+  // Photo Prompt State
+  const [showPhotoPrompt, setShowPhotoPrompt] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    // If signed in via Google/Gmail and NO photo exists, trigger prompt
+    if (user?.email?.includes('@gmail.com') && !localStorage.getItem('finorax_profile_pic')) {
+      const t = setTimeout(() => setShowPhotoPrompt(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [user]);
+
+  const startCamera = async () => {
+    setIsCameraActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      console.error("Camera access denied", err);
+      alert("Camera access denied. Please allow permissions or use upload.");
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = useCallback(() => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      setTimeout(() => {
+        if (videoRef.current?.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(t => t.stop());
+            videoRef.current.srcObject = null;
+        }
+      }, 100);
+    }
+    setIsCameraActive(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    }
+  }, [stopCamera]);
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      canvas.width = 400; // Fixed resolution output for size limiting
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+      // Draw center crop
+      const size = Math.min(videoRef.current.videoWidth, videoRef.current.videoHeight);
+      const x = (videoRef.current.videoWidth - size) / 2;
+      const y = (videoRef.current.videoHeight - size) / 2;
+      ctx.drawImage(videoRef.current, x, y, size, size, 0, 0, 400, 400);
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress significantly
+      setCustomProfilePic(dataUrl);
+      localStorage.setItem('finorax_profile_pic', dataUrl);
+      stopCamera();
+      setShowPhotoPrompt(false);
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomProfilePic(reader.result);
+        localStorage.setItem('finorax_profile_pic', reader.result);
+        setShowPhotoPrompt(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSend = async (e, customMessage = null) => {
     if (e) e.preventDefault();
@@ -91,7 +178,7 @@ export default function Dashboard({ user, onLogout }) {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: navInput,
-        config: { systemInstruction: SYSTEM_PROMPT }
+        config: { systemInstruction: getSystemPrompt(aiTone, riskTolerance) }
       });
       setMessages(prev => [...prev, { role: 'assistant', text: response.text }]);
     } catch (error) {
@@ -201,10 +288,10 @@ export default function Dashboard({ user, onLogout }) {
           </button>
 
           <button 
-            onClick={() => handleNav('more')}
-            className={`w-full text-left px-4 py-3 rounded-lg hover:bg-[#2A2B32] transition-colors text-[14px] font-medium ${activeView === 'more' ? 'bg-[#2A2B32] text-white' : 'text-gray-300'}`}
+            onClick={() => handleNav('settings')}
+            className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-lg hover:bg-[#2A2B32] transition-colors text-[14px] font-medium ${activeView === 'settings' ? 'bg-[#2A2B32] text-white' : 'text-gray-300'}`}
           >
-            More
+            <Settings className="w-[15px] h-[15px]" /> Settings
           </button>
         </div>
 
@@ -350,50 +437,79 @@ export default function Dashboard({ user, onLogout }) {
                         ))}
                     </div>
                 </div>
-            ) : activeView === 'more' ? (
-                // --- SETTINGS STATE ---
+            ) : activeView === 'settings' ? (
+                // --- BOT SETTINGS & PROFILE STATE ---
                 <div className="w-full max-w-[850px] p-4 md:p-8 animate-fade-in mt-[2vh] text-white">
-                    <h2 className="text-[22px] font-bold mb-6">Settings & Profile</h2>
-                    <div className="bg-[#0f111a]/60 p-6 rounded-[20px] border border-white/10 shadow-sm backdrop-blur-md">
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="w-16 h-16 rounded-full bg-[#1E1E2A] flex shrink-0 items-center justify-center border border-white/10 overflow-hidden">
-                                {customProfilePic ? (
-                                    <img src={customProfilePic} alt="Profile" className="w-full h-full object-cover" />
-                                ) : (
-                                    <User className="w-8 h-8 text-gray-400" />
-                                )}
+                    <h2 className="text-[22px] font-bold mb-6">Settings</h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Profile Column */}
+                        <div className="bg-[#0f111a]/60 p-6 rounded-[20px] border border-white/10 shadow-sm backdrop-blur-md">
+                            <h3 className="text-[15px] font-bold text-[#DBCDF0] mb-5">My Profile</h3>
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="w-16 h-16 rounded-full bg-[#1E1E2A] flex shrink-0 items-center justify-center border border-white/10 overflow-hidden relative group">
+                                    {customProfilePic ? (
+                                        <img src={customProfilePic} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User className="w-8 h-8 text-gray-400" />
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="text-[17px] font-bold truncate max-w-[150px]">{user?.email || "Authenticated"}</p>
+                                    <p className="text-[12px] text-[#25c870] font-semibold mt-0.5">Verified Local User</p>
+                                </div>
                             </div>
+
+                            <button onClick={() => setShowPhotoPrompt(true)} className="w-full bg-white/5 border border-white/10 hover:bg-white/10 py-3 rounded-[12px] text-[13px] font-bold text-white transition-colors flex items-center justify-center gap-2 mb-4">
+                               <Camera className="w-[15px] h-[15px]" /> Edit Profile Photo
+                            </button>
+
+                            {customProfilePic && (
+                                <button onClick={() => { setCustomProfilePic(''); localStorage.removeItem('finorax_profile_pic'); }} className="w-full text-red-400 hover:text-red-300 text-[13px] font-bold transition-colors mb-6">Clear Image</button>
+                            )}
+
+                            <div className="border-t border-white/10 pt-5">
+                                <button type="button" onClick={onLogout} className="text-red-400 hover:text-red-300 text-[14px] font-bold transition-colors">Log out securely</button>
+                            </div>
+                        </div>
+
+                        {/* Finance Bot Column */}
+                        <div className="bg-[#0f111a]/60 p-6 rounded-[20px] border border-white/10 shadow-sm backdrop-blur-md flex flex-col justify-between">
                             <div>
-                                <p className="text-[18px] font-bold">{user?.email || "Authenticated User"}</p>
-                                <p className="text-[13px] text-[#a4a6b5]">Active on Finora X</p>
-                            </div>
-                        </div>
+                                <h3 className="text-[15px] font-bold text-[#DBCDF0] mb-5">AI Strategy Intelligence</h3>
+                                
+                                <label className="block text-[12.5px] font-bold mb-2 text-white">Communication Tone</label>
+                                <div className="relative mb-5">
+                                    <select 
+                                        value={aiTone}
+                                        onChange={e => { setAiTone(e.target.value); localStorage.setItem('finorax_tone', e.target.value); }}
+                                        className="w-full bg-[#161824] border border-white/10 focus:border-[#674FA3] rounded-[10px] py-[10px] px-3.5 text-white text-[13px] font-semibold outline-none appearance-none"
+                                    >
+                                        <option value="Professional">Professional (Formal & Precise)</option>
+                                        <option value="Casual">Casual (Friendly & Accessible)</option>
+                                        <option value="Direct">Direct (Bullet Points & Bottom Line)</option>
+                                    </select>
+                                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">▼</div>
+                                </div>
 
-                        <div className="mb-6">
-                            <label className="text-[13px] font-bold text-white mb-2 block">Custom Profile Image URL:</label>
-                            <div className="flex gap-3">
-                                <input 
-                                    type="text" 
-                                    value={customProfilePic}
-                                    onChange={(e) => {
-                                        setCustomProfilePic(e.target.value);
-                                        localStorage.setItem('finorax_profile_pic', e.target.value);
-                                    }}
-                                    placeholder="https://example.com/photo.jpg" 
-                                    className="flex-1 bg-[#161824] border border-white/10 focus:border-[#674FA3] rounded-[10px] py-[8px] px-3 text-white placeholder-[#6b6f80] text-[13.5px] outline-none transition-colors"
-                                />
-                                <button 
-                                    type="button"
-                                    onClick={() => { setCustomProfilePic(''); localStorage.removeItem('finorax_profile_pic'); }}
-                                    className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-[10px] text-[13px] font-medium text-white transition-colors"
-                                >
-                                    Clear
-                                </button>
+                                <label className="block text-[12.5px] font-bold mb-2 text-white">Default Risk Tolerance</label>
+                                <div className="relative mb-4">
+                                    <select 
+                                        value={riskTolerance}
+                                        onChange={e => { setRiskTolerance(e.target.value); localStorage.setItem('finorax_risk', e.target.value); }}
+                                        className="w-full bg-[#161824] border border-white/10 focus:border-[#674FA3] rounded-[10px] py-[10px] px-3.5 text-white text-[13px] font-semibold outline-none appearance-none"
+                                    >
+                                        <option value="Conservative">Conservative (Capital Preservation)</option>
+                                        <option value="Moderate">Moderate (Balanced Yield)</option>
+                                        <option value="Aggressive">Aggressive (High Growth)</option>
+                                    </select>
+                                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">▼</div>
+                                </div>
                             </div>
-                        </div>
-
-                        <div className="border-t border-white/10 pt-4 flex gap-4">
-                            <button type="button" onClick={onLogout} className="text-red-400 hover:text-red-300 text-[14px] font-bold transition-colors">Log out securely</button>
+                            
+                            <p className="text-[11.5px] text-[#a4a6b5] leading-relaxed bg-[#161824] p-3 rounded-xl border border-white/5">
+                                These settings actively re-route the AI core to prioritize solutions that align with your selected financial posture.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -584,6 +700,55 @@ export default function Dashboard({ user, onLogout }) {
         </div>
 
       </div>
+
+      {/* Global Profile Photo Feature Overlay */}
+      {showPhotoPrompt && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="bg-[#161824] border border-white/10 rounded-[28px] w-full max-w-sm p-7 shadow-2xl relative animate-fade-in flex flex-col items-center">
+                  
+                  <button onClick={() => { setShowPhotoPrompt(false); stopCamera(); }} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-white/5 p-1.5 rounded-full backdrop-blur-md transition-colors">
+                      <X className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="w-14 h-14 bg-gradient-to-br from-[#674FA3] to-[#452b82] rounded-2xl flex items-center justify-center mb-5 shrink-0 border border-white/10 shadow-lg">
+                      <User className="text-white w-7 h-7" />
+                  </div>
+
+                  <h2 className="text-[20px] font-bold text-white mb-2 text-center tracking-wide">Update Profile Photo</h2>
+                  <p className="text-[13px] text-[#8a8d9e] text-center mb-7 leading-relaxed font-medium">Capture a quick photo from your web camera, or upload one from your gallery.</p>
+                  
+                  {isCameraActive ? (
+                      <div className="w-full flex justify-center mb-2 flex-col items-center">
+                          <video ref={videoRef} className="w-full aspect-square object-cover rounded-full bg-black border-2 border-[#594294] shadow-[0_0_20px_rgba(89,66,148,0.3)] mb-6 scale-x-[-1]" autoPlay playsInline />
+                          <button onClick={capturePhoto} className="bg-white text-[#161824] hover:bg-gray-200 px-8 py-[12px] rounded-full font-bold text-[14px] shadow-lg transition-transform hover:scale-[1.03] active:scale-95">Snap & Save</button>
+                      </div>
+                  ) : (
+                      <div className="flex flex-col gap-3.5 w-full">
+                          <button onClick={startCamera} className="w-full bg-[#2A2B32] hover:bg-[#3D3F44] border border-white/5 py-[14px] rounded-2xl flex items-center justify-center gap-2.5 font-bold text-[14px] text-white transition-all shadow-sm">
+                              <Camera className="w-[18px] h-[18px]" />
+                              Open Camera
+                          </button>
+                          
+                          <div className="relative w-full">
+                              <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  onChange={handleFileUpload} 
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                              />
+                              <div className="w-full bg-transparent hover:bg-white/5 border border-white/10 py-[14px] rounded-2xl flex items-center justify-center gap-2.5 font-bold text-[14px] text-gray-300 transition-all">
+                                  <Upload className="w-[18px] h-[18px]" />
+                                  Upload from Gallery
+                              </div>
+                          </div>
+                      </div>
+                  )}
+
+                  <canvas ref={canvasRef} className="hidden" />
+              </div>
+          </div>
+      )}
+
     </div>
   );
 }
